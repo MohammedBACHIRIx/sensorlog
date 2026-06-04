@@ -1,4 +1,4 @@
-package com.example.sensorlogger.ui
+﻿package com.example.sensorlogger.ui
 
 import android.app.Application
 import android.content.Intent
@@ -36,21 +36,21 @@ class SensorViewModel(application: Application) : AndroidViewModel(application) 
 
     init {
         _availableSensors.value = sensorService.getAvailableSensors()
-        
+
         _availableSensors.value.forEach { sensor ->
             sensorJobs[sensor.type] = viewModelScope.launch {
                 sensorService.observeSensor(sensor).collect { data ->
-                    _activeSensorData.update { currentMap ->
-                        currentMap.toMutableMap().apply { put(sensor.type, data) }
-                    }
-                    
+                    // Update active data
+                    _activeSensorData.update { it + (sensor.type to data) }
+
+                    // Update history
                     _sensorHistory.update { currentHistory ->
                         val historyList = currentHistory[sensor.type]?.toMutableList() ?: mutableListOf()
                         historyList.add(data.values.clone())
                         if (historyList.size > MAX_HISTORY_SIZE) {
                             historyList.removeAt(0)
                         }
-                        currentHistory.toMutableMap().apply { put(sensor.type, historyList) }
+                        currentHistory + (sensor.type to historyList)
                     }
 
                     if (_isRecording.value) {
@@ -61,22 +61,25 @@ class SensorViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun toggleRecording(): Intent? {
-        return if (_isRecording.value) {
-            _isRecording.value = false
-            logger.stopLoggingAndExport()
-        } else {
-            logger.startLogging()
-            _isRecording.value = true
-            null
+    fun toggleRecording(onExportReady: (Intent) -> Unit) {
+        viewModelScope.launch {
+            if (_isRecording.value) {
+                _isRecording.value = false
+                logger.stopLoggingAndExport()?.let { onExportReady(it) }
+            } else {
+                logger.startLogging()
+                _isRecording.value = true
+            }
         }
     }
 
     override fun onCleared() {
         super.onCleared()
         sensorJobs.values.forEach { it.cancel() }
-        if (_isRecording.value) {
-            logger.stopLoggingAndExport()
+        viewModelScope.launch {
+            if (_isRecording.value) {
+                logger.stopLoggingAndExport()
+            }
         }
     }
 }

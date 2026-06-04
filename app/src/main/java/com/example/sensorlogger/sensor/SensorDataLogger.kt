@@ -1,9 +1,13 @@
-package com.example.sensorlogger.sensor
+﻿package com.example.sensorlogger.sensor
 
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileWriter
 import java.text.SimpleDateFormat
@@ -14,41 +18,57 @@ class SensorDataLogger(private val context: Context) {
     private var fileWriter: FileWriter? = null
     private var logFile: File? = null
     private var isLogging = false
+    private val scope = CoroutineScope(Dispatchers.IO)
 
     fun startLogging() {
         if (isLogging) return
-        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        logFile = File(context.cacheDir, "sensor_log_$timeStamp.csv")
-        fileWriter = FileWriter(logFile)
-        fileWriter?.append("Timestamp,SensorName,SensorType,ValueX,ValueY,ValueZ\n")
         isLogging = true
+        scope.launch {
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            logFile = File(context.cacheDir, "sensor_log_.csv")
+            try {
+                fileWriter = FileWriter(logFile)
+                fileWriter?.append("Timestamp,SensorName,SensorType,ValueX,ValueY,ValueZ\n")
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun logData(data: SensorData) {
         if (!isLogging) return
-        val x = data.values.getOrNull(0) ?: 0f
-        val y = data.values.getOrNull(1) ?: 0f
-        val z = data.values.getOrNull(2) ?: 0f
-        
-        fileWriter?.append("${data.timestamp},\"${data.sensorName}\",${data.sensorType},$x,$y,$z\n")
+        scope.launch {
+            val x = data.values.getOrNull(0) ?: 0f
+            val y = data.values.getOrNull(1) ?: 0f
+            val z = data.values.getOrNull(2) ?: 0f
+            try {
+                fileWriter?.append(",\"\",,,,\n")
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
-    fun stopLoggingAndExport(): Intent? {
-        if (!isLogging) return null
+    suspend fun stopLoggingAndExport(): Intent? = withContext(Dispatchers.IO) {
+        if (!isLogging) return@withContext null
         isLogging = false
-        fileWriter?.flush()
-        fileWriter?.close()
+        try {
+            fileWriter?.flush()
+            fileWriter?.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         fileWriter = null
 
-        val file = logFile ?: return null
-        
+        val file = logFile ?: return@withContext null
+
         val uri: Uri = FileProvider.getUriForFile(
             context,
-            "${context.packageName}.provider",
+            ".provider",
             file
         )
 
-        return Intent(Intent.ACTION_SEND).apply {
+        Intent(Intent.ACTION_SEND).apply {
             type = "text/csv"
             putExtra(Intent.EXTRA_SUBJECT, "Sensor Log Data")
             putExtra(Intent.EXTRA_STREAM, uri)

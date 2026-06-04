@@ -1,4 +1,4 @@
-package com.example.sensorlogger.ui
+﻿package com.example.sensorlogger.ui
 
 import android.content.Intent
 import androidx.compose.foundation.background
@@ -45,8 +45,7 @@ fun MainScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    val intent = viewModel.toggleRecording()
-                    if (intent != null) {
+                    viewModel.toggleRecording { intent ->
                         context.startActivity(Intent.createChooser(intent, "Export Sensor Data"))
                     }
                 },
