@@ -9,6 +9,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
 
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +29,21 @@ jobs:
         run: ./gradlew assembleDebug
 
       - name: Upload APK as artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
           path: app/build/outputs/apk/debug/
           retention-days: 30
+
+      - name: Create Issue on Build Failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create --title "🚨 Build Failed: ${{ github.workflow }}" --body "The build workflow **${{ github.workflow }}** failed on branch **${{ github.ref_name }}**.
+          
+          **Commit:** ${{ github.sha }}
+          **Run Details:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          
+          Please check the logs to identify and fix the issue."
