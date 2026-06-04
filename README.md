@@ -47,3 +47,7 @@ This project uses **GitHub Actions** to automate the build process. Every push t
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Feedback Loop & Contributing
+
+We welcome feedback! If you find a bug or have a feature request, please [open an issue](https://github.com/MohammedBACHIRIx/sensorlog/issues/new/choose) using our templates. This helps us track and improve the app systematically.
